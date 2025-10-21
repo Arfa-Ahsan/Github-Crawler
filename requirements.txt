@@ -1,0 +1,16 @@
+requests
+python-dotenv
+psycopg2-binary
+tenacity
+pydantic
+aiohttp
+asyncio
+pandas
+structlog
+pytest
+pytest-asyncio
+pytest-cov
+black
+flake8
+mypy
+ipython
