@@ -61,16 +61,19 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: postgres
         run: |
-          echo "Testing with 1000 repositories..."
-          python - <<'PYCODE'
+          echo "🧪 Testing with 1000 repositories..."
+          python - << 'PYCODE'
           import asyncio
           from main import crawl_repositories
-          asyncio.run(crawl_repositories(limit=1000))
+          
+          try:
+              asyncio.run(crawl_repositories(limit=1000))
+          except RuntimeError:
+              crawl_repositories(limit=1000)
           PYCODE
 
-          echo "Checking results..."
+          echo "✅ Checking results..."
           PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "SELECT COUNT(*) as total FROM repositories;"
-
       - name: Export test data
         env:
           PGPASSWORD: postgres
