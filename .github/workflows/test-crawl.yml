@@ -1,0 +1,92 @@
+name: Test Crawler (1000 repos)
+
+# This is a test workflow that crawls only 1000 repos
+# Use this to quickly test the pipeline before running the full 100k crawl
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  test-crawl:
+    runs-on: ubuntu-latest
+    
+    # PostgreSQL service container
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: github_crawler
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Setup PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          
+          echo "Creating schema..."
+          psql -h localhost -U postgres -d github_crawler -f database/schema.sql
+          
+          echo "Tables created:"
+          psql -h localhost -U postgres -d github_crawler -c "\dt"
+      
+      - name: Test Crawl (1000 repos only)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: github_crawler
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          # Modify main.py to crawl only 1000 repos for testing
+          echo "Testing with 1000 repositories..."
+          python -c "
+from main import crawl_repositories
+crawl_repositories(limit=1000)
+          "
+          
+          echo "Checking results..."
+          PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "SELECT COUNT(*) as total FROM repositories;"
+      
+      - name: Export test data
+        env:
+          PGPASSWORD: postgres
+        run: |
+          echo "Exporting test data..."
+          psql -h localhost -U postgres -d github_crawler -c "\COPY (SELECT * FROM repositories ORDER BY stars DESC LIMIT 100) TO 'test_repositories.csv' WITH CSV HEADER;"
+          
+          echo "Sample data:"
+          head -n 11 test_repositories.csv
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-crawler-data
+          path: test_repositories.csv
+          retention-days: 7
