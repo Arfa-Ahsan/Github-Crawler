@@ -66,6 +66,7 @@ jobs:
 
           echo "✅ Checking results..."
           PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "SELECT COUNT(*) as total FROM repositories;"
+      
       - name: Export test data
         env:
           PGPASSWORD: postgres
