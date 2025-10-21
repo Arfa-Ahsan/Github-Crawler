@@ -385,7 +385,7 @@ async def crawl_repositories_optimized(limit: int = 100000):
 
 def crawl_repositories(limit: int = 100000):
     """Synchronous wrapper for the async crawler"""
-    asyncio.run(crawl_repositories_optimized(limit))
+    return asyncio.run(crawl_repositories_optimized(limit))
 
 
 if __name__ == "__main__":
