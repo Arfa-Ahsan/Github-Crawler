@@ -63,10 +63,11 @@ jobs:
         run: |
           echo "🧪 Testing with 1000 repositories..."
           python - <<'PYCODE'
-          from main import crawl_repositories
+from main import crawl_repositories
+
+crawl_repositories(limit=1000)
+PYCODE
           
-          crawl_repositories(limit=1000)
-          PYCODE
 
           echo "✅ Checking results..."
           PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "SELECT COUNT(*) as total FROM repositories;"
