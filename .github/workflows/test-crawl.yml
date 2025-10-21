@@ -62,14 +62,10 @@ jobs:
           DB_PASSWORD: postgres
         run: |
           echo "🧪 Testing with 1000 repositories..."
-          python - << 'PYCODE'
-          import asyncio
+          python - <<'PYCODE'
           from main import crawl_repositories
           
-          try:
-              asyncio.run(crawl_repositories(limit=1000))
-          except RuntimeError:
-              crawl_repositories(limit=1000)
+          crawl_repositories(limit=1000)
           PYCODE
 
           echo "✅ Checking results..."
