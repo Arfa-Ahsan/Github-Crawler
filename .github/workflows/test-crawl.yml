@@ -30,7 +30,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.13"
 
       - name: Install dependencies
         run: |
@@ -62,12 +62,7 @@ jobs:
           DB_PASSWORD: postgres
         run: |
           echo "🧪 Testing with 1000 repositories..."
-          python - <<'PYCODE'
-from main import crawl_repositories
-
-crawl_repositories(limit=1000)
-PYCODE
-          
+          python -c "from main import crawl_repositories; crawl_repositories(limit=1000)"
 
           echo "✅ Checking results..."
           PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "SELECT COUNT(*) as total FROM repositories;"
