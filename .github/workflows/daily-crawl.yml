@@ -79,6 +79,7 @@ jobs:
           DB_NAME: github_crawler
           DB_USER: postgres
           DB_PASSWORD: postgres
+          PGPASSWORD: postgres
         run: |
           echo "Starting crawler to fetch 100,000 repositories..."
           python main.py
