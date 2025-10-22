@@ -1,15 +1,44 @@
 # GitHub Repository Crawler
 
-A high-performance Python crawler that fetches repository data from GitHub's GraphQL API and stores it in PostgreSQL.
+**A production-ready crawler that fetches star counts from 100,000 GitHub repositories using GraphQL API and stores them in PostgreSQL.**
 
-## 🎯 Features
+---
 
-- **Fast & Efficient**: Crawls 100,000 repositories in 1-2 minutes
-- **Async Operations**: Uses asyncio and aiohttp for parallel requests
-- **Rate Limit Handling**: Smart rate limiting with automatic retry
-- **Database Optimized**: Batch inserts with connection pooling
-- **Automated**: GitHub Actions for daily scheduled runs
-- **GraphQL API**: Uses GitHub's GraphQL API for efficient data fetching
+## 📋 Project Overview
+
+This project fulfills the following requirements:
+
+✅ **Crawl 100,000 GitHub repositories** using GitHub's GraphQL API  
+✅ **Respect rate limits** (5,000 GraphQL points/hour) with automatic retry mechanisms  
+✅ **Store data in PostgreSQL** with efficient schema design and UPSERT operations  
+✅ **Daily automated crawling** via GitHub Actions for continuous data updates  
+✅ **Clean architecture** - Separation of concerns, immutability, anti-corruption layer  
+✅ **Zero-configuration CI/CD** - Uses default GitHub token, no secrets required
+
+---
+
+## 🎯 Key Features
+
+### Performance
+
+- **Fast & Efficient**: Crawls 100,000 repositories in minutes
+- **Async Operations**: Uses asyncio and aiohttp for 15 concurrent requests
+- **Smart Rate Limiting**: Respects GitHub's 5,000 req/hour limit with automatic backoff
+- **Batch Processing**: 1,000-record database inserts for optimal performance
+
+### Architecture
+
+- **GraphQL API**: Efficient data fetching with pagination
+- **Multi-Query Strategy**: Bypasses 1,000 result limit per query (400+ queries)
+- **Connection Pooling**: 3-10 PostgreSQL connections for concurrent writes
+- **Retry Mechanisms**: Exponential backoff on failures (5 attempts, 4-60s wait)
+
+### Database
+
+- **Flexible Schema**: Supports star history tracking over time
+- **Efficient Updates**: UPSERT operations (INSERT ... ON CONFLICT UPDATE)
+- **Indexed Queries**: Fast lookups on repo_id and recording dates
+- **Daily Tracking**: Automatically records star counts each day
 
 ## 🚀 Quick Start
 
@@ -36,14 +65,6 @@ pip install -r requirements.txt
 
 3. Set up environment variables (copy `.env.example` to `.env`):
 
-```env
-GITHUB_TOKEN=your_github_token_here
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=github_crawler
-DB_USER=postgres
-DB_PASSWORD=your_password
-```
 
 4. Initialize the database:
 
@@ -87,20 +108,6 @@ The workflow automatically:
 4. Exports data to CSV
 5. Uploads as artifacts (downloadable for 30 days)
 
-### 🤔 "Wait, how does the token work?"
-
-Great question! Your `.env` file stays on your computer (it's in `.gitignore`).
-
-GitHub Actions uses a **different token** that GitHub provides automatically!
-
-**📖 Read more:**
-
-- **[Quick Answer](QUICK_TOKEN_ANSWER.md)** - 2-minute explanation
-- **[Visual Guide](TOKEN_VISUAL_GUIDE.md)** - Diagrams and flowcharts
-- **[Full Explanation](GITHUB_TOKEN_EXPLANATION.md)** - Complete technical details
-
-**TL;DR:** Local development uses your `.env` file. GitHub Actions uses an automatic token. Both work with the same code! 4. Exports data as CSV artifacts 5. Stores results for 30 days
-
 ### 📊 View Results
 
 After a run completes:
@@ -109,15 +116,6 @@ After a run completes:
 2. Click on the completed workflow
 3. Download **Artifacts** (CSV files)
 4. Analyze the data!
-
-**📖 [Full Guide: GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md)**
-
-## 📊 Performance
-
-- **Target**: 100,000 repositories
-- **Time**: 1-2 minutes (optimized version)
-- **Rate**: 200-300+ repos/second
-- **API Calls**: ~5,000/hour (within GitHub limits)
 
 ### Multi-Query Strategy
 
@@ -150,14 +148,6 @@ The crawler uses 400+ different search queries to bypass GitHub's 1,000 result l
 - `repository_id`: Foreign key to repositories
 - `stars`: Star count at recording time
 - `recorded_at`: Timestamp (default: current date)
-
-## 📖 Documentation
-
-- **[Pipeline Implementation](PIPELINE_IMPLEMENTATION.md)** - Complete requirements checklist
-- **[GitHub Actions Setup](GITHUB_ACTIONS_SETUP.md)** - Detailed setup guide
-- **[Workflow Documentation](.github/workflows/README.md)** - Technical workflow details
-- **[Optimization Guide](OPTIMIZATION_GUIDE.md)** - Performance optimizations explained
-- **[Quick Start Guide](QUICKSTART.md)** - 5-minute local setup
 
 ## 🎯 GitHub Actions Requirements
 
