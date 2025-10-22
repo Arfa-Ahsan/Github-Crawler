@@ -25,7 +25,7 @@ DB_POOL_MAX = 10  # Maximum DB connections
 # Each query can return up to 1000 repos, allowing us to get 100k+ total
 
 # Generate comprehensive search queries
-languages = ["Python", "JavaScript", "TypeScript", "Go", "Rust", "Java", "C++"]
+languages = ["Python", "JavaScript", "TypeScript", "Go", "Rust", "Java", "C++","Ruby"]
 years = [2023, 2024, 2025]  # 8 years
 star_buckets = [
     (1, 10),        # Small projects
@@ -383,7 +383,7 @@ async def crawl_repositories_optimized(limit: int = 100000):
     print(f"{'='*60}\n")
 
 
-def crawl_repositories(limit: int = 100000):
+def crawl_repositories(limit: int = 1000):
     """Synchronous wrapper for the async crawler"""
     return asyncio.run(crawl_repositories_optimized(limit))
 
