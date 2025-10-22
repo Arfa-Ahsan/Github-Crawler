@@ -1,19 +1,24 @@
 name: Daily GitHub Crawler
 
-# Run every day at 2:00 AM UTC
-# You can also trigger manually from the Actions tab
 on:
   schedule:
     - cron: "0 7 * * *" # Daily at 7 AM UTC
   workflow_dispatch: # Allows manual trigger
   push:
-    branches: [main] # Also run on push to test
+    branches: [main] # Run on push to test
 
 jobs:
   crawl:
     runs-on: ubuntu-latest
 
-    # PostgreSQL service container
+    # Job-level environment variables (available to all steps)
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: github_crawler
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+
     services:
       postgres:
         image: postgres:15
@@ -21,13 +26,13 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: github_crawler
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout repository
@@ -52,57 +57,45 @@ jobs:
           pip install -r requirements.txt
 
       - name: Setup PostgreSQL - Create tables and schemas
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGDATABASE: github_crawler
-          PGUSER: postgres
-          PGPASSWORD: postgres
         run: |
+          export PGPASSWORD="$DB_PASSWORD"
+
           # Wait for PostgreSQL to be ready
-          until pg_isready -h localhost -p 5432 -U postgres; do
+          until pg_isready -h 127.0.0.1 -p 5432 -U "$DB_USER"; do
             echo "Waiting for PostgreSQL to be ready..."
             sleep 2
           done
 
           echo "Creating database schema..."
-          psql -h localhost -U postgres -d github_crawler -f database/schema.sql
+          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -f database/schema.sql
 
           echo "Verifying tables created..."
-          psql -h localhost -U postgres -d github_crawler -c "\dt"
+          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\dt"
 
       - name: Crawl Stars - Fetch 100,000 GitHub repositories
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: github_crawler
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          PGPASSWORD: postgres
         run: |
+          export PGPASSWORD="$DB_PASSWORD"
+
           echo "Starting crawler to fetch 100,000 repositories..."
           python main.py
 
           echo "Crawler completed. Checking database..."
-          PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "SELECT COUNT(*) as total FROM repositories;"
+          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as total FROM repositories;"
 
       - name: Export database to CSV
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGDATABASE: github_crawler
-          PGUSER: postgres
-          PGPASSWORD: postgres
         run: |
+          export PGPASSWORD="$DB_PASSWORD"
+
           echo "Exporting repositories to CSV..."
-          psql -h localhost -U postgres -d github_crawler -c "\COPY (SELECT * FROM repositories ORDER BY stars DESC) TO 'repositories.csv' WITH CSV HEADER;"
+          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\COPY (SELECT * FROM repositories ORDER BY stars DESC) TO 'repositories.csv' WITH CSV HEADER;"
 
           echo "Exporting star history to CSV..."
-          psql -h localhost -U postgres -d github_crawler -c "\COPY (SELECT * FROM repository_star_history ORDER BY recorded_at DESC) TO 'star_history.csv' WITH CSV HEADER;"
+          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\COPY (SELECT * FROM repository_star_history ORDER BY recorded_at DESC) TO 'star_history.csv' WITH CSV HEADER;"
 
           echo "Creating summary statistics..."
-          psql -h localhost -U postgres -d github_crawler -c "\COPY (
+          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\COPY (
             SELECT 
               COUNT(*) as total_repositories,
               SUM(stars) as total_stars,
@@ -113,7 +106,7 @@ jobs:
           ) TO 'summary_stats.csv' WITH CSV HEADER;"
 
           echo "Files created:"
-          ls -lh *.csv
+          ls -lh *.csv || true
 
       - name: Upload database dump as artifact
         uses: actions/upload-artifact@v4
@@ -128,8 +121,16 @@ jobs:
       - name: Display summary
         run: |
           echo "=== Crawl Summary ==="
-          cat summary_stats.csv
+          if [ -f summary_stats.csv ]; then
+            cat summary_stats.csv
+          else
+            echo "summary_stats.csv not found"
+          fi
 
           echo ""
           echo "=== Top 10 Most Starred Repositories ==="
-          head -n 11 repositories.csv | column -t -s,
+          if [ -f repositories.csv ]; then
+            head -n 11 repositories.csv | column -t -s,
+          else
+            echo "repositories.csv not found"
+          fi
