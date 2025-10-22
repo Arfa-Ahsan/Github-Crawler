@@ -18,6 +18,7 @@ jobs:
       DB_NAME: github_crawler
       DB_USER: postgres
       DB_PASSWORD: postgres
+      PGPASSWORD: postgres   # ✅ ensures psql never asks for a password
 
     services:
       postgres:
@@ -58,44 +59,37 @@ jobs:
 
       - name: Setup PostgreSQL - Create tables and schemas
         run: |
-          export PGPASSWORD="$DB_PASSWORD"
-
-          # Wait for PostgreSQL to be ready
-          until pg_isready -h 127.0.0.1 -p 5432 -U "$DB_USER"; do
-            echo "Waiting for PostgreSQL to be ready..."
+          echo "Waiting for PostgreSQL to be ready..."
+          until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER; do
             sleep 2
           done
 
           echo "Creating database schema..."
-          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -f database/schema.sql
+          psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f database/schema.sql
 
           echo "Verifying tables created..."
-          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\dt"
+          psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "\dt"
 
       - name: Crawl Stars - Fetch 100,000 GitHub repositories
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # ✅ default GitHub Actions token
         run: |
-          export PGPASSWORD="$DB_PASSWORD"
-
           echo "Starting crawler to fetch 100,000 repositories..."
           python main.py
 
           echo "Crawler completed. Checking database..."
-          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as total FROM repositories;"
+          psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "SELECT COUNT(*) as total FROM repositories;"
 
       - name: Export database to CSV
         run: |
-          export PGPASSWORD="$DB_PASSWORD"
-
           echo "Exporting repositories to CSV..."
-          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\COPY (SELECT * FROM repositories ORDER BY stars DESC) TO 'repositories.csv' WITH CSV HEADER;"
+          psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "\COPY (SELECT * FROM repositories ORDER BY stars DESC) TO 'repositories.csv' WITH CSV HEADER;"
 
           echo "Exporting star history to CSV..."
-          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\COPY (SELECT * FROM repository_star_history ORDER BY recorded_at DESC) TO 'star_history.csv' WITH CSV HEADER;"
+          psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "\COPY (SELECT * FROM repository_star_history ORDER BY recorded_at DESC) TO 'star_history.csv' WITH CSV HEADER;"
 
           echo "Creating summary statistics..."
-          psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c "\COPY (
+          psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "\COPY (
             SELECT 
               COUNT(*) as total_repositories,
               SUM(stars) as total_stars,
